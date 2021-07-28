@@ -1,10 +1,9 @@
 package com.servihabitat.auth.model;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-@Getter @Setter @NoArgsConstructor
+@Data
+@NoArgsConstructor @AllArgsConstructor
 public class IbmTokenResponse {
     private String access_token;
     private String refresh_token;

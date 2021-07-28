@@ -2,6 +2,7 @@ package com.servihabitat.auth.controller;
 
 import com.servihabitat.auth.model.BodyToSend;
 import com.servihabitat.auth.model.EntityIncoming;
+import com.servihabitat.auth.model.IbmTokenResponse;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,10 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.bind.DatatypeConverter;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 
 
@@ -34,34 +38,42 @@ public class AuthController {
 
         log.info("@@@@@@@@@@@@@@@@@@@ Inside token method");
 
-        if (entityIn.clientId == "" || entityIn.secret == null || entityIn.serviceAccountName == "" || entityIn.serviceAccountPass == null)
+        if (entityIn.getClientId() == "" || entityIn.getSecret() == null ||
+                entityIn.getServiceAccountName() == "" || entityIn.getServiceAccountPass() == "")
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         urlIbmCloudToken = urlIbmCloudToken.replace("xxxxxx", tenantId);
         try {
-            final RestTemplate restTemplate = new RestTemplateBuilder().build();
-            BodyToSend bodyOut = new BodyToSend("password", entityIn.serviceAccountName, entityIn.serviceAccountPass);
-            //restTemplate.exchange (urlIbmCloudToken, HttpMethod.POST, new HttpEntity<IbmTokenResponse>(createHeaders(entityIn.serviceAccountName, entityIn.serviceAccountPass)), body);
+            String authorizationHeader = "Basic " + DatatypeConverter.printBase64Binary((entityIn.getClientId() + ":" + entityIn.getSecret()).getBytes());
 
-            //String response = restTemplate.postForObject(urlIbmCloudToken, entityIn, EntityIncoming.class);
+            HttpHeaders requestHeaders = new HttpHeaders();
+            requestHeaders.setContentType(MediaType.APPLICATION_JSON);
+            requestHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+            requestHeaders.add("Authorization", authorizationHeader);
+
+            BodyToSend bodyToSend = new BodyToSend("password",
+                                                    entityIn.getServiceAccountName(), entityIn.getServiceAccountPass());
+
+            HttpEntity<BodyToSend> requestEntity = new HttpEntity<>(bodyToSend, requestHeaders);
+
+            RestTemplate restTemplate = new RestTemplateBuilder().build();
+            ResponseEntity<IbmTokenResponse> responseEntity = restTemplate.exchange(
+                    urlIbmCloudToken,
+                    HttpMethod.POST,
+                    requestEntity,
+                    IbmTokenResponse.class);
+
+            if (responseEntity.getStatusCode() == HttpStatus.OK){
+                IbmTokenResponse response = responseEntity.getBody();
+            }
 
             log.info("@@@@@@@@@@@@@@@@@@@ Last line token method");
-            res.setStatus(HttpServletResponse.SC_OK);
+            return ResponseEntity.ok(responseEntity.getBody());
         } catch (Exception ex) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+            log.error("@@@@@@@@@@@@@@@@@@@ Exception: " + ex.getMessage());
+            return ResponseEntity.status(401).body(ex.getMessage());
         }
-        return null;
-
-    }
-
-    public HttpHeaders createHeaders(String username, String password) {
-        return new HttpHeaders() {
-            String auth = username + ":" + password;
-            byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("US-ASCII")));
-            String authHeader = "Basic " + new String(encodedAuth);
-        };
-    }
 
 
-
-}
+    } //end of gettingAccessToken
+} //end of class

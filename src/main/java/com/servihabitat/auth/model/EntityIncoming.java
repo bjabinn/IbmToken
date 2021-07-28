@@ -1,22 +1,14 @@
 package com.servihabitat.auth.model;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-@Getter @Setter @NoArgsConstructor
+@Data
+@NoArgsConstructor @AllArgsConstructor
 public class EntityIncoming {
-    public String clientId;
-    public String secret;
-    public String serviceAccountName;
-    public String serviceAccountPass;
-
-    public EntityIncoming(String cliente, String secr, String serviceName, String servicePass) {
-        clientId = cliente;
-        secret = secr;
-        serviceAccountName = serviceName;
-        serviceAccountPass = servicePass;
-    }
+    private String clientId;
+    private String secret;
+    private String serviceAccountName;
+    private String serviceAccountPass;
 }
 
 
