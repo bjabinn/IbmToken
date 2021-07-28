@@ -9,9 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
+import org.springframework.jmx.export.UnableToRegisterMBeanException;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -36,7 +38,7 @@ public class AuthController {
     @RequestMapping("/token")
     public ResponseEntity gettingAccessToken(@RequestBody EntityIncoming entityIn, HttpServletResponse res) {
 
-        log.info("@@@@@@@@@@@@@@@@@@@ Inside token method");
+        log.info("@@@@@@@@@@@@@@@@@@@ First line /token method");
 
         if (entityIn.getClientId() == "" || entityIn.getSecret() == null ||
                 entityIn.getServiceAccountName() == "" || entityIn.getServiceAccountPass() == "")
@@ -52,7 +54,7 @@ public class AuthController {
             requestHeaders.add("Authorization", authorizationHeader);
 
             BodyToSend bodyToSend = new BodyToSend("password",
-                                                    entityIn.getServiceAccountName(), entityIn.getServiceAccountPass());
+                    entityIn.getServiceAccountName(), entityIn.getServiceAccountPass());
 
             HttpEntity<BodyToSend> requestEntity = new HttpEntity<>(bodyToSend, requestHeaders);
 
@@ -63,15 +65,23 @@ public class AuthController {
                     requestEntity,
                     IbmTokenResponse.class);
 
-            if (responseEntity.getStatusCode() == HttpStatus.OK){
-                IbmTokenResponse response = responseEntity.getBody();
+            IbmTokenResponse response = new IbmTokenResponse();
+            if (responseEntity.getStatusCode() == HttpStatus.OK) {
+                response = responseEntity.getBody();
             }
 
-            log.info("@@@@@@@@@@@@@@@@@@@ Last line token method");
+            log.debug("@@@@@@@@@@@@@@@@@@@ User: " + entityIn.getServiceAccountName() + ", accessToken: " + response.getAccess_token());
+            log.info("@@@@@@@@@@@@@@@@@@@ Last line /token method. Everthing was fine.");
             return ResponseEntity.ok(responseEntity.getBody());
-        } catch (Exception ex) {
+        } catch (HttpClientErrorException.BadRequest ex){
+            log.error("@@@@@@@@@@@@@@@@@@@ Bad Request Exception: " + ex.getMessage());
+            return ResponseEntity.badRequest().body("Bad Request: " + ex.getMessage());
+        } catch (HttpClientErrorException.Unauthorized ex) {
+            log.error("@@@@@@@@@@@@@@@@@@@ Unauthorized Exception: " + ex.getMessage());
+            return ResponseEntity.status(401).body("Unauthorized: " + ex.getMessage());
+        } catch (Exception ex){
             log.error("@@@@@@@@@@@@@@@@@@@ Exception: " + ex.getMessage());
-            return ResponseEntity.status(401).body(ex.getMessage());
+            return ResponseEntity.status(500).body("EXCEPTION: " + ex.getMessage());
         }
 
 
